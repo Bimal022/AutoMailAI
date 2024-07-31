@@ -1,4 +1,6 @@
 # ReachInbox Email Automation Tool
+## Demo
+[![Loom Video](https://www.loom.com/share/19e0e79b20e6441e87e2c5a852addc9a?sid=43dc1fb0-5232-43c5-85d5-e723412cce1d)](https://www.loom.com/share/19e0e79b20e6441e87e2c5a852addc9a?sid=43dc1fb0-5232-43c5-85d5-e723412cce1d)
 
 ## Introduction
 
