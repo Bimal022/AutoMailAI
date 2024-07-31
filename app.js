@@ -47,7 +47,7 @@ app.get('/oauth2callback', async (req, res) => {
   res.send('Authentication successful! You can now close this window.');
 });
 
-// Create a new Bull queue
+
 const emailQueue = new Bull('emailQueue');
 
 // Add a job to the queue to check for new emails every minute
@@ -138,19 +138,38 @@ function categorizeEmail(parsedEmail) {
   }
 }
 
-// Function to label email in Gmail
+async function ensureLabelExists(gmail, labelName) {
+  const res = await gmail.users.labels.list({ userId: 'me' });
+  const labels = res.data.labels;
+  const label = labels.find(l => l.name === labelName);
+
+  if (label) {
+    return label.id;
+  } else {
+    const newLabelRes = await gmail.users.labels.create({
+      userId: 'me',
+      requestBody: {
+        name: labelName,
+        labelListVisibility: 'labelShow',
+        messageListVisibility: 'show',
+      },
+    });
+    return newLabelRes.data.id;
+  }
+}
+
 async function labelEmail(gmail, messageId, label) {
-  const labels = {
-    'Interested': 'Label_1',
-    'Not Interested': 'Label_2',
-    'More information': 'Label_3',
+  const labelIds = {
+    'Interested': await ensureLabelExists(gmail, 'Interested'),
+    'Not Interested': await ensureLabelExists(gmail, 'Not Interested'),
+    'More information': await ensureLabelExists(gmail, 'More information'),
   };
   console.log('Labeling email:', messageId, label);
   await gmail.users.messages.modify({
     userId: 'me',
     id: messageId,
     resource: {
-      addLabelIds: [labels[label]],
+      addLabelIds: [labelIds[label]],
     },
   });
 }

@@ -31,8 +31,7 @@ This project is an email automation tool built for ReachInbox.ai as part of an a
 
 1. Clone the Repository:
    ```bash
-   git clone https://github.com/your-repo/reachinbox-email-automation.git
-   cd reachinbox-email-automation
+   git clone https://github.com/Bimal022/AutoMailAI.git
 
 2. Install Dependencies:
 
