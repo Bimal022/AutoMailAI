@@ -1,4 +1,6 @@
 node_modules/
 .env
-tokens.json
+/tokens.json
 *.log
+
+/.vscode
