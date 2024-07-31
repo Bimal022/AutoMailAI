@@ -1,10 +1,13 @@
-require('dotenv').config();
-const express = require('express');
-const { google } = require('googleapis');
-const bodyParser = require('body-parser');
-const fs = require('fs');
-const Bull = require('bull');
-const axios = require('axios');
+import dotenv from 'dotenv';
+import express from 'express';
+import { google } from 'googleapis';
+import bodyParser from 'body-parser';
+import fs from 'fs';
+import Bull from 'bull';
+import axios from 'axios';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+dotenv.config();
 
 const app = express();
 app.use(bodyParser.json());
@@ -12,14 +15,9 @@ app.use(bodyParser.json());
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
-const GEMINI_API_URL = 'https://api.gemini.com/v1/parse';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-const oAuth2Client = new google.auth.OAuth2(
-  CLIENT_ID,
-  CLIENT_SECRET,
-  REDIRECT_URI
-);
+const oAuth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
 
 // Load previously saved tokens, if they exist
 if (fs.existsSync('tokens.json')) {
@@ -34,6 +32,7 @@ app.get('/auth', (req, res) => {
     scope: [
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/gmail.modify',
     ],
   });
   res.redirect(authUrl);
@@ -44,7 +43,6 @@ app.get('/oauth2callback', async (req, res) => {
   const code = req.query.code;
   const { tokens } = await oAuth2Client.getToken(code);
   oAuth2Client.setCredentials(tokens);
-  // Save the tokens to a file (optional)
   fs.writeFileSync('tokens.json', JSON.stringify(tokens));
   res.send('Authentication successful! You can now close this window.');
 });
@@ -75,11 +73,15 @@ emailQueue.process(async (job) => {
   }
 
   // Fetch unread emails newer than the last processed email ID
-  const res = await gmail.users.messages.list({ userId: 'me', q: 'is:unread', maxResults: 10 });
+  const res = await gmail.users.messages.list({
+    userId: 'me',
+    q: 'is:unread',
+    maxResults: 10,
+  });
   const messages = res.data.messages || [];
-  
+
   for (const message of messages) {
-    if (message.id > lastEmailId) { // Process only new emails
+    if (message.id > lastEmailId) {
       const msg = await gmail.users.messages.get({ userId: 'me', id: message.id });
       const emailData = msg.data;
       console.log('Email data:', emailData);
@@ -87,11 +89,11 @@ emailQueue.process(async (job) => {
       const label = categorizeEmail(parsedEmail);
       console.log('Email label:', label);
       await labelEmail(gmail, message.id, label);
-      await sendAutoReply(gmail, parsedEmail, label);
+      await sendAutoReply(gmail, emailData, label);
 
       // Update the last processed email ID
       fs.writeFileSync('lastEmailId.txt', message.id);
-      
+
       // Break after processing one email
       break;
     }
@@ -101,22 +103,32 @@ emailQueue.process(async (job) => {
 // Function to parse email using Gemini API
 async function parseEmailWithGemini(emailData) {
   console.log('Parsing email with Gemini:', emailData.snippet);
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${GEMINI_API_KEY}`,
+
+  const googleAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  const geminiConfig = {
+    temperature: 0.9,
+    topP: 1,
+    topK: 1,
+    maxOutputTokens: 4096,
   };
-  const body = {
-    email: emailData.snippet,
-  };
-  const response = await axios.post(GEMINI_API_URL, body, { headers });
-  console.log('Gemini API response:', response.data);
-  return response.data;
+  
+  const geminiModel = googleAI.getGenerativeModel({
+    model: 'gemini-pro',
+    geminiConfig,
+  });
+
+  const prompt = emailData.snippet;
+  const result = await geminiModel.generateContent(prompt);
+  const response = result.response;
+  const parsedEmail = response.text();
+
+  console.log('Gemini API response:', parsedEmail);
+  return parsedEmail;
 }
 
 // Function to categorize the email
 function categorizeEmail(parsedEmail) {
   console.log('Categorizing email:', parsedEmail);
-  // Implement your categorization logic based on parsedEmail content
   if (parsedEmail.includes('interested')) {
     return 'Interested';
   } else if (parsedEmail.includes('not interested')) {
@@ -129,7 +141,7 @@ function categorizeEmail(parsedEmail) {
 // Function to label email in Gmail
 async function labelEmail(gmail, messageId, label) {
   const labels = {
-    Interested: 'Label_1',
+    'Interested': 'Label_1',
     'Not Interested': 'Label_2',
     'More information': 'Label_3',
   };
@@ -144,15 +156,15 @@ async function labelEmail(gmail, messageId, label) {
 }
 
 // Function to send automated reply
-async function sendAutoReply(gmail, parsedEmail, label) {
+async function sendAutoReply(gmail, emailData, label) {
   const replies = {
-    Interested: 'Thank you for your interest! Are you available for a demo call?',
+    'Interested': 'Thank you for your interest! Are you available for a demo call?',
     'Not Interested': 'Thank you for your response. Let us know if you change your mind.',
     'More information': 'Can you please specify what additional information you need?',
   };
   const rawMessage = [
     'From: me',
-    `To: ${parsedEmail.from}`,
+    `To: ${emailData.payload.headers.find(header => header.name === 'From').value}`,
     'Subject: Re: Your Email',
     '',
     replies[label],
