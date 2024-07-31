@@ -54,7 +54,7 @@ Create a .env file in the root directory with the following:
 4. Run the Server:
 
     ```bash
-    node index.js
+    node app.js
 
 5. Usage
 
