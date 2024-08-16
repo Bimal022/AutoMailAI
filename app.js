@@ -24,9 +24,7 @@ if (fs.existsSync('tokens.json')) {
   const tokens = JSON.parse(fs.readFileSync('tokens.json'));
   oAuth2Client.setCredentials(tokens);
 }
-app.get('/', (req, res) => {
-  res.redirect('/auth');
-});
+
 // Generate an OAuth URL and redirect there
 app.get('/auth', (req, res) => {
   const authUrl = oAuth2Client.generateAuthUrl({

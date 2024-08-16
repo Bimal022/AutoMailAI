@@ -8,13 +8,6 @@
     ],
     "routes": [
       {
-        "src": "/",
-        "status": 301,
-        "headers": {
-          "Location": "/auth"
-        }
-      },
-      {
         "src": "/(.*)",
         "dest": "/app.js"
       }
