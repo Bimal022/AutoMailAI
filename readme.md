@@ -1,9 +1,4 @@
-# ReachInbox Email Automation Tool
-
-## Demo
-
-[![Loom Video](https://www.loom.com/share/19e0e79b20e6441e87e2c5a852addc9a?sid=43dc1fb0-5232-43c5-85d5-e723412cce1d)](https://www.loom.com/share/19e0e79b20e6441e87e2c5a852addc9a?sid=43dc1fb0-5232-43c5-85d5-e723412cce1d)
-
+# Email Automation Tool
 ## Introduction
 
 This project is an email automation tool built for ReachInbox.ai as part of an assignment for the position of Associate - Backend Engineer. The tool parses and checks emails in Google and Outlook accounts, categorizes them based on content, and responds automatically using AI. It utilizes BullMQ for task scheduling, Google OAuth for authentication, and the Gemini API for email context understanding and automatic replies.
